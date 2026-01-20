@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+      layout:decorate="~{admin/fragments/admin-layout}" lang="vi">
+<head>
+    <title th:text="${pageTitle ?: 'Quản Lý Sản Phẩm'}"></title>
+    <style>
+        .required-field::after { content: " *"; color: red; }
+    </style>
+</head>
+<body>
+    <div layout:fragment="content">
+        <nav aria-label="breadcrumb">
+            <ol class="breadcrumb">
+                <li class="breadcrumb-item"><a th:href="@{/admin/products}">Quản lý Sản phẩm</a></li>
+                <li class="breadcrumb-item active" aria-current="page" th:text="${pageTitle}">Form</li>
+            </ol>
+        </nav>
+
+        <h1 class="h3 mb-3" th:text="${pageTitle}">Form Sản Phẩm</h1>
+
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form th:action="@{/admin/products/save}" method="post" th:object="${product}" enctype="multipart/form-data" novalidate>
+                    <input type="hidden" th:name="${_csrf.parameterName}" th:value="${_csrf.token}" />
+                    <input type="hidden" th:field="*{productId}" />
+                    <input type="hidden" th:field="*{imageUrl}" th:if="*{productId != null}" />
+
+                    <div th:if="${#fields.hasGlobalErrors()}" class="alert alert-danger small p-2 mb-3" role="alert">
+                        <p class="mb-0" th:each="err : ${#fields.globalErrors()}" th:text="${err}"></p>
+                    </div>
+                    <div th:if="${errorMessage}" class="alert alert-danger small p-2 mb-3" role="alert" th:text="${errorMessage}"></div>
+
+                    <div class="mb-3 row">
+                        <label for="name" class="col-sm-3 col-form-label required-field">Tên Sản Phẩm</label>
+                        <div class="col-sm-9">
+                            <input type="text" class="form-control" th:field="*{name}" id="name" required
+                                   th:classappend="${#fields.hasErrors('name')} ? 'is-invalid' : ''">
+                            <div class="invalid-feedback" th:if="${#fields.hasErrors('name')}" th:errors="*{name}"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 row">
+                        <label for="description" class="col-sm-3 col-form-label">Mô Tả</label>
+                        <div class="col-sm-9">
+                           <textarea class="form-control" th:field="*{description}" id="description" rows="5"
+                                      th:classappend="${#fields.hasErrors('description')} ? 'is-invalid' : ''"></textarea>
+                            <div class="invalid-feedback" th:if="${#fields.hasErrors('description')}" th:errors="*{description}"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 row">
+                        <label for="price" class="col-sm-3 col-form-label required-field">Giá (₫)</label>
+                         <div class="col-sm-9">
+                            <input type="number" step="1000" min="0" class="form-control" th:field="*{price}" id="price" required
+                                   th:classappend="${#fields.hasErrors('price')} ? 'is-invalid' : ''">
+                           <div class="invalid-feedback" th:if="${#fields.hasErrors('price')}" th:errors="*{price}"></div>
+                        </div>
+                    </div>
+
+                    <hr>
+                    <h5>Tùy chọn Kích thước & Giá (Để trống nếu dùng giá mặc định)</h5>
+                    <!-- Size options -->
+                    <div class="row mb-2 gx-2">
+                        <div class="col">
+                            <label class="form-label form-label-sm">Tên Size 1</label>
+                            <input type="text" name="sizeOptions_name_1" class="form-control form-control-sm" th:value="${product.sizeOptions?.get('key1')}">
+                        </div>
+                        <div class="col">
+                            <label class="form-label form-label-sm">Giá Size 1 (₫)</label>
+                            <input type="number" step="1000" name="sizeOptions_price_1" class="form-control form-control-sm" th:value="${product.sizeOptions?.get('value1')}">
+                        </div>
+                    </div>
+                    <div class="row mb-2 gx-2">
+                        <div class="col">
+                            <label class="form-label form-label-sm">Tên Size 2</label>
+                            <input type="text" name="sizeOptions_name_2" class="form-control form-control-sm">
+                        </div>
+                        <div class="col">
+                            <label class="form-label form-label-sm">Giá Size 2 (₫)</label>
+                            <input type="number" step="1000" name="sizeOptions_price_2" class="form-control form-control-sm">
+                        </div>
+                    </div>
+                    <div class="row mb-3 gx-2">
+                        <div class="col">
+                            <label class="form-label form-label-sm">Tên Size 3</label>
+                            <input type="text" name="sizeOptions_name_3" class="form-control form-control-sm">
+                        </div>
+                        <div class="col">
+                            <label class="form-label form-label-sm">Giá Size 3 (₫)</label>
+                            <input type="number" step="1000" name="sizeOptions_price_3" class="form-control form-control-sm">
+                        </div>
+                    </div>
+                    <hr>
+
+                    <div class="mb-3 row">
+                        <label for="category" class="col-sm-3 col-form-label required-field">Danh Mục</label>
+                        <div class="col-sm-9">
+                            <select class="form-select" th:field="*{category}" id="category" required
+                                    th:classappend="${#fields.hasErrors('category')} ? 'is-invalid' : ''">
+                                <option value="">-- Chọn Danh Mục --</option>
+                                <option th:each="cat : ${categories}"
+                                        th:value="${cat.categoryId}"
+                                        th:text="${cat.name}"
+                                        th:selected="${cat.categoryId == product?.category?.categoryId}"></option>
+                            </select>
+                            <div class="invalid-feedback" th:if="${#fields.hasErrors('category')}" th:errors="*{category}"></div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 row">
+                         <label class="col-sm-3 col-form-label">Trạng Thái Bán</label>
+                        <div class="col-sm-9">
+                            <div class="form-check form-switch pt-2">
+                                <input class="form-check-input" type="checkbox" role="switch" id="isAvailable" th:field="*{isAvailable}">
+                                <label class="form-check-label" for="isAvailable">Đang bán (Có sẵn)</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3 row align-items-center">
+                        <label for="imageFile" class="col-sm-3 col-form-label">Ảnh Đại Diện</label>
+                        <div class="col-sm-9">
+                            <input class="form-control" type="file" id="imageFile" name="imageFile" accept="image/png, image/jpeg, image/gif">
+                            <div class="invalid-feedback d-block" th:if="${#fields.hasErrors('imageUrl')}" th:errors="*{imageUrl}"></div>
+                            <small class="form-text text-muted d-block mt-1">Chọn file ảnh mới (png, jpg, gif). Để trống nếu không muốn thay đổi ảnh hiện tại.</small>
+
+                            <div th:if="*{productId != null and imageUrl != null and imageUrl != ''}" class="mt-2">
+                                <p class="mb-1 small text-muted">Ảnh hiện tại:</p>
+                                <img th:src="@{${imageUrl}}" alt="Ảnh hiện tại" height="100" class="img-thumbnail p-1 border">
+                            </div>
+                        </div>
+                    </div>
+                    <input type="hidden" name="currentImageUrl" th:if="${product.productId != null}" th:value="${product.imageUrl}" />
+
+                    <div class="row mt-4">
+                        <div class="col-sm-9 offset-sm-3">
+                            <button type="submit" class="btn btn-primary"><i class="bi bi-save me-1"></i> Lưu Sản Phẩm</button>
+                            <a th:href="@{/admin/products}" class="btn btn-secondary"><i class="bi bi-x-circle me-1"></i> Hủy</a>
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <th:block layout:fragment="scripts">
+       <!-- Optional scripts -->
+    </th:block>
+</body>
+</html>

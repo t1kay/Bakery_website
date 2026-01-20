@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<!-- Kế thừa layout chung -->
+<html
+  xmlns:th="http://www.thymeleaf.org"
+  xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+  layout:decorate="~{fragments/layout}"
+  lang="vi"
+>
+  <head>
+    <!-- Đặt title động -->
+    <title
+      th:text="${query != null && !query.isEmpty()} ? 'Kết quả cho \'' + ${query} + '\'' : 'Tìm Kiếm Sản Phẩm'"
+    ></title>
+    <link rel="stylesheet" th:href="@{/css/custom.css}" />
+    <!-- Đảm bảo link CSS đúng -->
+  </head>
+  <body class="d-flex flex-column min-vh-100">
+    <!-- Phần nội dung chính -->
+    <div layout:fragment="content">
+      <main class="container mt-4 mb-5 flex-grow-1">
+        <!-- Hiển thị tiêu đề và query tìm kiếm -->
+        <h1 class="mb-4 display-6">
+          Kết quả tìm kiếm
+          <span
+            th:if="${query != null and !query.isEmpty()}"
+            th:text="' cho \'' + ${query} + '\''"
+          ></span>
+        </h1>
+
+        <!-- Hiển thị thông báo nếu có -->
+        <div
+          th:if="${searchMessage}"
+          class="alert alert-info"
+          role="alert"
+          th:text="${searchMessage}"
+        ></div>
+        <div
+          th:if="${errorMessage}"
+          class="alert alert-danger"
+          role="alert"
+          th:text="${errorMessage}"
+        ></div>
+
+        <!-- Hiển thị danh sách sản phẩm tìm thấy -->
+        <!-- Sử dụng row-cols giống trang product/list.html -->
+        <div
+          class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4"
+          th:if="${products != null and not #lists.isEmpty(products)}"
+        >
+          <div th:each="product : ${products}" class="col">
+            <!-- Sử dụng lại cấu trúc product card từ product/list.html -->
+            <div
+              class="card h-100 product-card shadow-sm border-light text-center"
+            >
+              <a
+                th:href="@{/products/{id}(id=${product.productId})}"
+                class="product-card-img-wrapper"
+              >
+                <img
+                  th:src="@{${product.imageUrl ?: '/img/placeholder.png'}}"
+                  class="card-img-top product-card-img"
+                  th:alt="${product.name}"
+                />
+              </a>
+              <div class="card-body d-flex flex-column">
+                <h5 class="card-title product-name mb-1 fs-6">
+                  <a
+                    th:href="@{/products/{id}(id=${product.productId})}"
+                    th:text="${product.name}"
+                    class="product-link"
+                    >Tên sản phẩm</a
+                  >
+                </h5>
+                <p
+                  class="card-text product-price mb-3 currency"
+                  th:text="${#numbers.formatDecimal(product.price, 0, 'COMMA', 0, 'POINT')}"
+                >
+                  Giá
+                </p>
+                <div
+                  class="mt-auto d-flex justify-content-center align-items-center"
+                >
+                  <!-- Form Thêm vào giỏ (QUAN TRỌNG: Cần CSRF) -->
+                  <form
+                    th:action="@{/cart/add}"
+                    method="post"
+                    class="d-inline me-2"
+                    onsubmit="return addToCart(event)"
+                  >
+                    <input
+                      type="hidden"
+                      name="productId"
+                      th:value="${product.productId}"
+                    />
+                    <input type="hidden" name="quantity" value="1" />
+                    <!-- Lấy CSRF token -->
+                    <input
+                      type="hidden"
+                      th:name="${_csrf?.parameterName}"
+                      th:value="${_csrf?.token}"
+                    />
+                    <button
+                      type="submit"
+                      class="btn btn-sm btn-outline-primary"
+                    >
+                      <i class="bi bi-cart-plus"></i> Thêm vào giỏ
+                    </button>
+                  </form>
+                  <a
+                    th:href="@{/products/{id}(id=${product.productId})}"
+                    class="btn btn-sm btn-link text-secondary p-1"
+                    title="Xem chi tiết"
+                  >
+                    <i class="bi bi-search"></i>
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+      <script>
+        async function addToCart(event) {
+          event.preventDefault(); // chặn reload trang
+
+          const form = event.target;
+          const productId = form.querySelector('input[name="productId"]').value;
+          const token = document.querySelector('meta[name="_csrf"]').content;
+          const header = document.querySelector(
+            'meta[name="_csrf_header"]'
+          ).content;
+
+          try {
+            const response = await fetch("/cart/add", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                [header]: token,
+              },
+              body: JSON.stringify({
+                productId: productId,
+                quantity: 1,
+                selectedSize: null,
+              }),
+            });
+
+            if (!response.ok) {
+              showToast("Có lỗi từ máy chủ, vui lòng thử lại sau.", true);
+              return false;
+            }
+
+            const data = await response.json();
+
+            if (data.success) {
+              const cartCount = document.getElementById("cart-count");
+              if (cartCount) {
+                cartCount.textContent = data.totalItems;
+                if (data.totalItems > 0 && cartCount.style.display === "none") {
+                  cartCount.style.display = "";
+                }
+              }
+              showToast(data.message || "Đã thêm sản phẩm vào giỏ!");
+            } else {
+              showToast(data.message || "Lỗi khi thêm sản phẩm.", true);
+            }
+          } catch (err) {
+            // 4. Xử lý lỗi mạng (mất kết nối)
+            console.error(err);
+            showToast("Vui lòng đăng nhập để đặt hàng.", true);
+            setTimeout(() => {
+              window.location.href = "/login";
+            }, 1500);
+            return false;
+          }
+        } // Hàm hiển thị thông báo
+
+        function showToast(message, isError = false) {
+          const toast = document.createElement("div");
+          toast.textContent = message;
+          toast.className =
+            "toast-message " + (isError ? "bg-danger" : "bg-success");
+          toast.style.position = "fixed";
+          toast.style.bottom = "20px";
+          toast.style.right = "20px";
+          toast.style.color = "#fff";
+          toast.style.padding = "10px 15px";
+          toast.style.borderRadius = "6px";
+          toast.style.zIndex = "9999";
+          document.body.appendChild(toast);
+          setTimeout(() => toast.remove(), 2500);
+        }
+      </script>
+    </div>
+  </body>
+</html>

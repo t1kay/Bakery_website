@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html
+  xmlns:th="http://www.thymeleaf.org"
+  xmlns:layout="http://www.ultraq.net.nz/thymeleaf/layout"
+  layout:decorate="~{fragments/layout}"
+  lang="vi"
+>
+  <!-- Kế thừa layout chung -->
+  <head>
+    <!-- Title động -->
+    <title
+      th:if="${product != null}"
+      th:text="${product.name + ' - Tiệm Bánh Ngon'}"
+    >
+      Chi tiết sản phẩm
+    </title>
+    <title th:unless="${product != null}">
+      Không Tìm Thấy Sản Phẩm - Tiệm Bánh Ngon
+    </title>
+
+    <meta
+      name="description"
+      th:content="${product != null ? product.description : 'Thông tin chi tiết về sản phẩm bánh ngọt.'}"
+    />
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
+    <link rel="stylesheet" th:href="@{/css/custom.css}" />
+    <style>
+      /* CSS bổ sung nếu cần */
+      .product-detail-img {
+        border-radius: 8px;
+        box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+        max-width: 100%;
+        height: auto;
+        aspect-ratio: 1 / 1; /* Giữ tỉ lệ vuông nếu muốn */
+        object-fit: cover;
+      }
+      .product-detail h1 {
+        font-family: "Pacifico", cursive;
+        color: #a0522d;
+        margin-bottom: 0.5rem;
+      }
+      .product-detail .category-link {
+        font-size: 1.1rem;
+      }
+      .product-detail .product-price {
+        font-size: 1.8rem;
+        margin-bottom: 1rem;
+        color: #e74c3c;
+        font-weight: bold;
+      }
+      .product-detail .size-option label {
+        cursor: pointer;
+      }
+      .product-detail .size-option .size-price {
+        color: #e74c3c;
+        font-weight: 500;
+        margin-left: 5px;
+      }
+      .currency::after {
+        content: " ₫";
+        margin-left: 2px;
+      }
+      .form-check-input:checked {
+        background-color: #d2691e;
+        border-color: #a0522d;
+      }
+    </style>
+  </head>
+  <body>
+    <div layout:fragment="content">
+      <main class="container mt-4 mb-5 product-detail">
+        <!-- Kiểm tra nếu có sản phẩm -->
+        <div th:if="${product}">
+          <!-- Breadcrumb -->
+          <nav aria-label="breadcrumb" class="mb-3">
+            <ol class="breadcrumb">
+              <li class="breadcrumb-item"><a th:href="@{/}">Trang Chủ</a></li>
+              <li class="breadcrumb-item">
+                <a th:href="@{/products}">Sản Phẩm</a>
+              </li>
+              <!-- Link danh mục nếu có -->
+              <li class="breadcrumb-item" th:if="${product.category}">
+                <a
+                  th:href="@{/products(category=${product.category.name})}"
+                  th:text="${product.category.name}"
+                  >Category</a
+                >
+              </li>
+              <li
+                class="breadcrumb-item active"
+                aria-current="page"
+                th:text="${product.name}"
+              >
+                Product Name
+              </li>
+            </ol>
+          </nav>
+
+          <div class="row g-lg-5 g-4">
+            <div class="col-md-6">
+              <img
+                th:src="@{${product.imageUrl ?: '/img/placeholder.png'}}"
+                class="img-fluid product-detail-img"
+                th:alt="${product.name}"
+              />
+              <!-- TODO: Thêm gallery ảnh nhỏ nếu có -->
+            </div>
+
+            <!-- Cột thông tin và mua hàng -->
+            <div class="col-md-6">
+              <h1 th:text="${product.name}">Product Name</h1>
+              <!-- Link danh mục -->
+              <p class="mb-2" th:if="${product.category}">
+                <a
+                  th:href="@{/products(category=${product.category.name})}"
+                  class="text-muted text-decoration-none category-link"
+                  th:text="${product.category.name}"
+                  >Category Name</a
+                >
+              </p>
+
+              <!-- Giá sản phẩm -->
+              <!-- Chỉ hiển thị giá mặc định nếu KHÔNG có size options -->
+              <h4
+                class="product-price mb-3"
+                th:if="${product.sizeOptions == null or product.sizeOptions.isEmpty()}"
+                th:text="${#numbers.formatDecimal(product.price, 0, 'COMMA', 0, 'POINT')} + ' ₫'"
+              >
+                Price
+              </h4>
+              <!-- Nếu có size, giá sẽ hiển thị theo size được chọn -->
+              <p
+                th:if="${product.sizeOptions != null and !product.sizeOptions.isEmpty()}"
+                class="text-muted mb-3"
+              >
+                (Chọn kích thước để xem giá)
+              </p>
+
+              <hr />
+              <h5>Mô tả sản phẩm</h5>
+              <p
+                th:text="${product.description ?: 'Chưa có mô tả cho sản phẩm này.'}"
+              >
+                Detailed product description goes here...
+              </p>
+              <hr />
+
+              <!-- Form thêm vào giỏ hàng -->
+              <form id="add-to-cart-form">
+                <input
+                  type="hidden"
+                  name="productId"
+                  th:value="${product.productId}"
+                />
+                <meta name="_csrf" th:content="${_csrf.token}" />
+                <meta name="_csrf_header" th:content="${_csrf.headerName}" />
+
+                <!-- === PHẦN CHỌN SIZE (chỉ hiển thị nếu có size) === -->
+                <div
+                  class="mb-3"
+                  th:if="${product.sizeOptions != null and !product.sizeOptions.isEmpty()}"
+                >
+                  <label class="form-label fw-bold d-block mb-2"
+                    >Chọn kích thước:</label
+                  >
+
+                  <div
+                    th:each="entry, iterStat : ${product.sizeOptions.entrySet()}"
+                    class="form-check form-check-inline size-option mb-2"
+                  >
+                    <input
+                      class="form-check-input"
+                      type="radio"
+                      name="selectedSize"
+                      th:id="'size_' + ${iterStat.index}"
+                      th:value="${entry.key}"
+                      th:checked="${iterStat.index == 0}"
+                      required
+                    />
+                    <label
+                      class="form-check-label"
+                      th:for="'size_' + ${iterStat.index}"
+                    >
+                      <span th:text="${entry.key}">Size Name</span>
+                      (<span
+                        class="size-price currency"
+                        th:text="${#numbers.formatDecimal(entry.value, 0, 'COMMA', 0, 'POINT')} + ' ₫'"
+                      ></span
+                      >)
+                    </label>
+                  </div>
+                </div>
+                <!-- === KẾT THÚC PHẦN CHỌN SIZE === -->
+
+                <!-- Input số lượng -->
+                <div class="mb-3">
+                  <label for="quantity" class="form-label fw-bold"
+                    >Số lượng:</label
+                  >
+                  <input
+                    type="number"
+                    class="form-control"
+                    id="quantity"
+                    name="quantity"
+                    value="1"
+                    min="1"
+                    max="10"
+                    style="width: 90px"
+                    required
+                  />
+                </div>
+
+                <!-- Nút Thêm vào giỏ -->
+                <button
+                  type="submit"
+                  class="btn btn-success btn-lg shadow-sm"
+                  th:if="${product.isAvailable}"
+                >
+                  <i class="bi bi-cart-plus-fill me-2"></i> Thêm vào giỏ hàng
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-secondary btn-lg shadow-sm disabled"
+                  th:unless="${product.isAvailable}"
+                >
+                  <i class="bi bi-x-circle-fill me-2"></i> Hết hàng
+                </button>
+
+                <!-- Thông báo -->
+                <div id="add-cart-message" class="mt-3 small fw-bold"></div>
+              </form>
+
+              <!-- Nút quay lại -->
+              <div class="mt-4">
+                <a th:href="@{/products}" class="btn btn-outline-secondary"
+                  ><i class="bi bi-arrow-left"></i> Quay lại danh sách</a
+                >
+              </div>
+            </div>
+            <!-- Kết thúc col-md-6 thông tin -->
+          </div>
+          <!-- Kết thúc row -->
+        </div>
+        <!-- Kết thúc th:if="${product}" -->
+
+        <!-- Thông báo nếu không tìm thấy sản phẩm -->
+        <div
+          th:if="${product == null}"
+          class="alert alert-warning text-center"
+          role="alert"
+        >
+          <h2 class="alert-heading">Không tìm thấy sản phẩm!</h2>
+          <p>Sản phẩm bạn đang tìm kiếm không tồn tại hoặc đã bị xóa.</p>
+          <hr />
+          <a th:href="@{/products}" class="btn btn-secondary"
+            ><i class="bi bi-arrow-left"></i> Quay lại danh sách</a
+          >
+        </div>
+      </main>
+
+      <!-- Include Footer -->
+      <div th:replace="~{fragments/footer :: footer}"></div>
+
+      <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+
+      <script>
+        function showToast(message, isError = false) {
+          const toast = document.createElement("div");
+          toast.textContent = message;
+          toast.className =
+            "toast-message " + (isError ? "bg-danger" : "bg-success");
+          toast.style.position = "fixed";
+          toast.style.bottom = "20px";
+          toast.style.right = "20px";
+          toast.style.color = "#fff";
+          toast.style.padding = "10px 15px";
+          toast.style.borderRadius = "6px";
+          toast.style.zIndex = "9999";
+          document.body.appendChild(toast);
+          setTimeout(() => toast.remove(), 2500);
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+          const form = document.getElementById("add-to-cart-form");
+          const tokenMeta = document.querySelector('meta[name="_csrf"]');
+          const headerMeta = document.querySelector(
+            'meta[name="_csrf_header"]'
+          );
+
+          if (!form) return;
+
+          form.addEventListener("submit", async function (e) {
+            e.preventDefault();
+
+            const productId = form.querySelector(
+              "input[name='productId']"
+            ).value;
+            const quantity = form.querySelector("input[name='quantity']").value;
+            const sizeInput = form.querySelector(
+              "input[name='selectedSize']:checked"
+            );
+
+            const selectedSize = sizeInput ? sizeInput.value : null;
+
+            const token = tokenMeta?.content || "";
+            const header = headerMeta?.content || "X-CSRF-TOKEN";
+
+            try {
+              const response = await fetch("/cart/add", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  [header]: token,
+                },
+                body: JSON.stringify({
+                  productId: productId,
+                  quantity: parseInt(quantity),
+                  selectedSize: selectedSize,
+                }),
+              });
+
+              if (!response.ok) {
+                showToast("Có lỗi từ máy chủ, vui lòng thử lại sau.", true);
+                return;
+              }
+              const data = await response.json();
+
+              if (data.success) {
+                const cartCount = document.getElementById("cart-count");
+                if (cartCount) {
+                  cartCount.textContent = data.totalItems;
+                  if (
+                    data.totalItems > 0 &&
+                    cartCount.style.display === "none"
+                  ) {
+                    cartCount.style.display = "";
+                  }
+                }
+                showToast(data.message || "Đã thêm sản phẩm vào giỏ!");
+              } else {
+                showToast(data.message || "Lỗi khi thêm sản phẩm.", true);
+              }
+            } catch (error) {
+              console.error("Lỗi khi thêm sản phẩm:", error);
+              showToast("Vui lòng đăng nhập để đặt hàng.", true);
+              setTimeout(() => {
+                window.location.href = "/login";
+              }, 1500);
+              return;
+            }
+          });
+        });
+      </script>
+    </div>
+    <!-- layout:fragment="content" -->
+  </body>
+</html>

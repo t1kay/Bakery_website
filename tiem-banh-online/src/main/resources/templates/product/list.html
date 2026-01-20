@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org" lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Danh sách sản phẩm - Tiệm Bánh Ngon</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css"
+    />
+    <link rel="stylesheet" th:href="@{/css/custom.css}" />
+
+    <meta name="_csrf" th:content="${_csrf.token}" />
+    <meta name="_csrf_header" th:content="${_csrf.headerName}" />
+  </head>
+  <body class="d-flex flex-column min-vh-100">
+    <div th:replace="~{fragments/header :: header}"></div>
+
+    <main class="container mt-4 mb-5 flex-grow-1">
+      <h1
+        class="mb-4 text-center display-5"
+        style="font-family: 'Pacifico', cursive; color: #a0522d"
+      >
+        Khám Phá Bánh Ngọt
+      </h1>
+
+      <!-- Thông báo -->
+      <div
+        th:if="${cartMessageSuccess}"
+        class="alert alert-success alert-dismissible fade show small"
+        role="alert"
+      >
+        <i class="bi bi-check-circle-fill me-2"></i
+        ><span th:text="${cartMessageSuccess}"></span>
+        <button
+          type="button"
+          class="btn-close btn-sm"
+          data-bs-dismiss="alert"
+          aria-label="Close"
+        ></button>
+      </div>
+      <div
+        th:if="${cartMessageError}"
+        class="alert alert-danger alert-dismissible fade show small"
+        role="alert"
+      >
+        <i class="bi bi-exclamation-triangle-fill me-2"></i
+        ><span th:text="${cartMessageError}"></span>
+        <button
+          type="button"
+          class="btn-close btn-sm"
+          data-bs-dismiss="alert"
+          aria-label="Close"
+        ></button>
+      </div>
+
+      <!-- Hiển thị sản phẩm theo từng category -->
+      <div th:if="${productsByCategory != null}">
+        <div th:each="entry : ${productsByCategory}">
+          <!-- entry.key là đối tượng Category -->
+          <h2 th:text="${entry.key.name}" class="category-heading"></h2>
+
+          <div
+            class="row row-cols-1 row-cols-sm-2 row-cols-md-3 row-cols-lg-4 g-4"
+          >
+            <div th:each="product : ${entry.value}" class="col">
+              <div
+                class="card h-100 product-card shadow-sm border-light text-center"
+              >
+                <a
+                  th:href="@{/products/{id}(id=${product.productId})}"
+                  class="product-card-img-wrapper"
+                >
+                  <img
+                    th:src="@{${product.imageUrl ?: '/img/placeholder.png'}}"
+                    class="card-img-top product-card-img"
+                    th:alt="${product.name}"
+                  />
+                </a>
+                <div class="card-body d-flex flex-column">
+                  <h5 class="card-title product-name mb-1 fs-6">
+                    <a
+                      th:href="@{/products/{id}(id=${product.productId})}"
+                      th:text="${product.name}"
+                      class="product-link"
+                      >Tên sản phẩm</a
+                    >
+                  </h5>
+                  <p
+                    class="card-text product-price mb-3"
+                    th:text="${#numbers.formatDecimal(product.price, 0, 'COMMA', 0, 'POINT')} + ' ₫'"
+                  >
+                    Giá
+                  </p>
+                  <div
+                    class="mt-auto d-flex justify-content-center align-items-center"
+                  >
+                    <form
+                      class="d-inline me-2 add-to-cart-form"
+                      onsubmit="return addToCart(event)"
+                    >
+                      <input
+                        type="hidden"
+                        name="productId"
+                        th:value="${product.productId}"
+                      />
+                      <input type="hidden" name="quantity" value="1" />
+                      <input type="hidden" name="size" value="DEFAULT" />
+
+                      <button
+                        type="submit"
+                        class="btn btn-sm btn-outline-primary"
+                      >
+                        <i class="bi bi-cart-plus"></i> Thêm vào giỏ
+                      </button>
+                    </form>
+
+                    <a
+                      th:href="@{/products/{id}(id=${product.productId})}"
+                      class="btn btn-sm btn-link text-secondary p-1"
+                      title="Xem chi tiết"
+                    >
+                      <i class="bi bi-search"></i>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Nếu không có sản phẩm -->
+      <div
+        th:if="${productsByCategory == null or #maps.isEmpty(productsByCategory)}"
+        class="col-12"
+      >
+        <div class="alert alert-info text-center my-5">
+          <p class="lead">Hiện chưa có sản phẩm nào.</p>
+        </div>
+      </div>
+    </main>
+
+    <div th:replace="~{fragments/footer :: footer}"></div>
+
+    <script>
+      async function addToCart(event) {
+        event.preventDefault(); // chặn reload trang
+
+        const form = event.target;
+        const productId = form.querySelector('input[name="productId"]').value;
+        const token = document.querySelector('meta[name="_csrf"]').content;
+        const header = document.querySelector(
+          'meta[name="_csrf_header"]'
+        ).content;
+        try {
+          const response = await fetch("/cart/add", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              [header]: token,
+            },
+            body: JSON.stringify({ productId: productId, quantity: 1 }),
+          });
+          const data = await response.json();
+
+          if (data.success) {
+            const cartCount = document.getElementById("cart-count");
+            if (cartCount) {
+              // 1. Cập nhật số lượng
+              cartCount.textContent = data.totalItems;
+
+              // 2. Hiển thị badge nếu nó đang bị ẩn (từ 0 lên 1)
+              if (data.totalItems > 0 && cartCount.style.display === "none") {
+                cartCount.style.display = ""; // Bỏ thuộc tính 'display: none'
+              }
+            }
+            showToast("Đã thêm sản phẩm vào giỏ!");
+          } else {
+            showToast("Lỗi khi thêm sản phẩm.", true);
+          }
+        } catch (err) {
+          console.error(err);
+          showToast("Vui lòng đăng nhập để đặt hàng.", true);
+          setTimeout(() => {
+            window.location.href = "/login";
+          }, 1500);
+        }
+
+        return false;
+      }
+
+      // Hiển thị thông báo nhỏ gọn (toast)
+      function showToast(message, isError = false) {
+        const toast = document.createElement("div");
+        toast.textContent = message;
+        toast.className =
+          "toast-message " + (isError ? "bg-danger" : "bg-success");
+        toast.style.position = "fixed";
+        toast.style.bottom = "20px";
+        toast.style.right = "20px";
+        toast.style.color = "#fff";
+        toast.style.padding = "10px 15px";
+        toast.style.borderRadius = "6px";
+        toast.style.zIndex = "9999";
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2500);
+      }
+    </script>
+  </body>
+</html>
